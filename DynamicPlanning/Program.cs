@@ -82,7 +82,8 @@ namespace DynamicPlanning
              * pt.Y*2是每次规划时的范围，适当减小，可以提高运行速度
              * 
              */
-            Rectangle rectangle = new(start.X, start.Y, maxRect.X, pt.Y * 2);
+            Rectangle rectangle = new(start.X, start.Y, maxRect.X, (int)(pt.Y * 2));
+
             List<Rectangle> re = new();
             re.AddRange(rect.FindAll(o => rectangle.Contains(o)));
             re.Sort((a, b) => a.X.CompareTo(b.X));
@@ -112,8 +113,27 @@ namespace DynamicPlanning
                     if (minPtVal <= (start.Y + pt.Y))
                     {
                         rectangle = new Rectangle(rectClone[0].X, minPtVal, pt.X, pt.Y);
-                        result.Add(rectangle);
-                        rectClone.RemoveAll(o => rectangle.Contains(o));
+                        if (result.Count != 0)
+                        {
+                            List<Rectangle> cc = rect.FindAll(o => result[^1].Contains(o));
+                            cc.AddRange(rect.FindAll(p => rectangle.Contains(p)));
+                            bool HaveDuplicates = cc.GroupBy(i => i).Any(g => g.Count() > 1);
+                            if(HaveDuplicates)
+                            {
+                                rectClone.RemoveAt(0);
+                            }
+                            else
+                            {
+                                result.Add(rectangle);
+                                rectClone.RemoveAll(o => rectangle.Contains(o));
+                            }
+                        }
+                        else
+                        {
+                            result.Add(rectangle);
+                            rectClone.RemoveAll(o => rectangle.Contains(o));
+                        }
+                        
                     }
                     else
                     {
