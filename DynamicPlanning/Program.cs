@@ -38,8 +38,8 @@ namespace DynamicPlanning
         #region 全局参数
         [DllImport("kernel32.dll")]
         private static extern IntPtr GetConsoleWindow();
-        private static Graphics g = Graphics.FromHwnd(GetConsoleWindow());
-        private static Random rand = new();
+        private static readonly Graphics g = Graphics.FromHwnd(GetConsoleWindow());
+        private static readonly Random rand = new();
         /// <summary>
         /// 选择框大小
         /// </summary>
@@ -47,11 +47,15 @@ namespace DynamicPlanning
         /// <summary>
         /// 输入矩形列表
         /// </summary>
-        private static List<Rectangle> rect = new();
+        private static readonly List<Rectangle> rect = new();
         /// <summary>
         /// 矩形列表拷贝，无须赋值
         /// </summary>
-        private static List<Rectangle> rectClone = new();
+        private static readonly List<Rectangle> rectClone = new();
+        /// <summary>
+        /// 单次检测最大行数
+        /// </summary>
+        private static readonly int maxLine = 20;
         /// <summary>
         /// 最大范围
         /// </summary>
@@ -63,7 +67,7 @@ namespace DynamicPlanning
         /// <param name="val">随机矩形个数</param>
         /// <param name="wide"></param>
         /// <param name="high"></param>
-        private static void Init(int val = 200, int wide = 400, int high = 400)
+        private static void Init(int val = 300, int wide = 400, int high = 400)
         {
             for (int i = 0; i < val; i++)
             {
@@ -82,7 +86,7 @@ namespace DynamicPlanning
              * pt.Y*2是每次规划时的范围，适当减小，可以提高运行速度
              * 
              */
-            Rectangle rectangle = new(start.X, start.Y, maxRect.X, (int)(pt.Y * 2));
+            Rectangle rectangle = new(start.X, start.Y, maxRect.X, pt.Y * maxLine);
 
             List<Rectangle> re = new();
             re.AddRange(rect.FindAll(o => rectangle.Contains(o)));
@@ -102,51 +106,29 @@ namespace DynamicPlanning
             List<Rectangle> rectClone = new();
             ///拷贝
             rect.ForEach(i => rectClone.Add(i));
+            int vale = 0;
             Rectangle rectangle = new();
-            while (0 < rectClone.Count)
+            while (vale < rectClone.Count)
             {
-                rectangles.Clear();
-                rectangles.AddRange(rectClone.FindAll(o => (o.X >= rectClone[0].X) && ((o.X + o.Width) <= (rectClone[0].X + pt.X))));
-                var minPtVal = rectangles.Min(o => o.Y);
-                if ((rectClone[0].Bottom - minPtVal) <= pt.Y)
+             
+                rectangle = new Rectangle(rectClone[vale].X, start.Y, pt.X, maxLine * pt.Y);
+                var minYVal = rectClone.FindAll(o => rectangle.Contains(o)).Min(p => p.Y);
+                if (rectClone[vale].Bottom - minYVal <= pt.Y && minYVal <= (start.Y + ((maxLine - 1) * pt.Y)))
                 {
-                    if (minPtVal <= (start.Y + pt.Y))
-                    {
-                        rectangle = new Rectangle(rectClone[0].X, minPtVal, pt.X, pt.Y);
-                        if (result.Count != 0)
-                        {
-                            List<Rectangle> cc = rect.FindAll(o => result[^1].Contains(o));
-                            cc.AddRange(rect.FindAll(p => rectangle.Contains(p)));
-                            bool HaveDuplicates = cc.GroupBy(i => i).Any(g => g.Count() > 1);
-                            if(HaveDuplicates)
-                            {
-                                rectClone.RemoveAt(0);
-                            }
-                            else
-                            {
-                                result.Add(rectangle);
-                                rectClone.RemoveAll(o => rectangle.Contains(o));
-                            }
-                        }
-                        else
-                        {
-                            result.Add(rectangle);
-                            rectClone.RemoveAll(o => rectangle.Contains(o));
-                        }
-                        
-                    }
-                    else
-                    {
-                        rectClone.RemoveAt(0);
-                    }
+                    rectangle = new Rectangle(rectClone[vale].X, minYVal, pt.X, pt.Y);
+                    result.Add(rectangle);
+                    rectClone.RemoveAll(o => rectangle.Contains(o));
+                    vale = 0;
+                    rectClone.Sort((a, b) => a.X.CompareTo(b.X));
                 }
                 else
                 {
-                    rectClone.RemoveAt(0);
+                    // rectClone.Remove(rectClone.Find(o => o.Y == minYVal));
+                    vale++;
                 }
             }
-            Pen p = new Pen(Color.FromArgb(rand.Next(0, 255), rand.Next(0, 255), rand.Next(0, 255)));
-            result.ForEach(i => g.DrawRectangle(p, i));
+         //   Pen p = new(Color.FromArgb(rand.Next(0, 255), rand.Next(0, 255), rand.Next(0, 255)));
+            result.ForEach(i => g.DrawRectangle(new(Color.FromArgb(rand.Next(0, 255), rand.Next(0, 255), rand.Next(0, 255))), i));
             return result;
         }
         private static List<Rectangle> Total()
